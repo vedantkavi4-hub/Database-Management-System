@@ -1,0 +1,211 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Armoury Management System</title>
+<style>
+:root{--bg:#f4f5f0;--card:#fff;--tx:#1f2a1c;--mut:#667060;--bd:#d9dccf;--ac:#3f5d2a;--act:#fff;--ok:#2e7d32;--warn:#b26a00;--bad:#b3261e;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#14180f;--card:#1e2418;--tx:#e8ecdf;--mut:#9aa38f;--bd:#333b2a;--ac:#8fb36a;--act:#14180f;--ok:#7fcf84;--warn:#f0b04a;--bad:#ff8a80}}
+:root[data-theme="dark"]{--bg:#14180f;--card:#1e2418;--tx:#e8ecdf;--mut:#9aa38f;--bd:#333b2a;--ac:#8fb36a;--act:#14180f;--ok:#7fcf84;--warn:#f0b04a;--bad:#ff8a80}
+html{scroll-padding-top:env(safe-area-inset-top,0px)}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--tx);font:15px/1.45 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif}
+header{background:var(--ac);color:var(--act);padding:14px 16px}
+header h1{margin:0;font-size:18px;letter-spacing:.5px}
+header p{margin:2px 0 0;font-size:12px;opacity:.85}
+nav{display:flex;gap:6px;overflow-x:auto;padding:10px 12px;background:var(--card);border-bottom:1px solid var(--bd)}
+nav button{flex:none;border:1px solid var(--bd);background:transparent;color:var(--tx);padding:7px 12px;border-radius:999px;cursor:pointer;font:inherit}
+nav button.on{background:var(--ac);color:var(--act);border-color:var(--ac)}
+main{max-width:1000px;margin:0 auto;padding:14px 12px 40px}
+.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px;margin-bottom:14px}
+.card{background:var(--card);border:1px solid var(--bd);border-radius:10px;padding:12px 14px;margin-bottom:14px}
+.grid .card{margin:0}
+.stat b{display:block;font-size:26px}
+.stat span{color:var(--mut);font-size:12px;text-transform:uppercase;letter-spacing:.5px}
+h2{font-size:16px;margin:0 0 10px}
+.sc{overflow-x:auto}
+table{border-collapse:collapse;width:100%;min-width:560px}
+th,td{text-align:left;padding:7px 8px;border-bottom:1px solid var(--bd);font-size:13.5px;white-space:nowrap}
+th{color:var(--mut);font-weight:600;font-size:12px;text-transform:uppercase}
+.tag{padding:2px 8px;border-radius:999px;font-size:12px;border:1px solid currentColor}
+.Available,.Returned{color:var(--ok)}.Issued{color:var(--warn)}.Maintenance,.Decommissioned{color:var(--bad)}
+form{display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:10px;align-items:end}
+label{display:flex;flex-direction:column;font-size:12px;color:var(--mut);gap:3px}
+select,input{font:inherit;padding:8px;border-radius:8px;border:1px solid var(--bd);background:var(--bg);color:var(--tx)}
+.btn{font:inherit;padding:8px 14px;border-radius:8px;border:0;background:var(--ac);color:var(--act);cursor:pointer}
+.btn.sm{padding:4px 10px;font-size:12px}.btn.alt{background:transparent;color:var(--tx);border:1px solid var(--bd)}
+.bar{height:8px;background:var(--bd);border-radius:6px;overflow:hidden;min-width:80px}.bar i{display:block;height:100%;background:var(--ac)}
+.low{color:var(--bad);font-weight:600}
+#toast{position:fixed;left:50%;transform:translateX(-50%);bottom:calc(20px + env(safe-area-inset-bottom,0px));max-width:90%;padding:10px 16px;border-radius:10px;color:#fff;display:none;z-index:9}
+#toast.ok{background:#2e7d32}#toast.err{background:#b3261e}
+.sql{font:12px ui-monospace,Menlo,monospace;color:var(--mut);margin:6px 0 0}
+.row{display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-bottom:10px}
+</style>
+</head>
+<body>
+<header><h1>★ ARMOURY MANAGEMENT SYSTEM</h1><p>Interactive demo of the DBMS micro project · rules mirror the SQL triggers</p></header>
+<nav id="nav"></nav>
+<main id="app"></main>
+<div id="toast"></div>
+<script>
+const $=s=>document.querySelector(s);
+const now=()=>new Date();
+const addDays=(d,n)=>new Date(d.getTime()+n*864e5);
+const fmt=d=>d?new Date(d).toLocaleString("en-IN",{dateStyle:"medium",timeStyle:"short"}):"—";
+const fd=d=>d?new Date(d).toLocaleDateString("en-IN",{dateStyle:"medium"}):"—";
+
+/* ---------- in-memory database (mirrors the SQL tables) ---------- */
+const DB={
+ personnel:[
+  {id:1,no:"IC-1001",name:"Rajesh Kumar",rank:"Subedar",role:"Armourer",status:"Active"},
+  {id:2,no:"IC-1002",name:"Arjun Singh",rank:"Havildar",role:"Soldier",status:"Active"},
+  {id:3,no:"IC-1003",name:"Vikram Rathore",rank:"Captain",role:"Officer",status:"Active"},
+  {id:4,no:"IC-1004",name:"Manoj Yadav",rank:"Naik",role:"Soldier",status:"Active"},
+  {id:5,no:"IC-1005",name:"Suresh Patil",rank:"Naik",role:"Armourer",status:"Active"},
+  {id:6,no:"IC-1006",name:"Deepak Sharma",rank:"Sepoy",role:"Soldier",status:"Suspended"}],
+ weapons:[
+  {id:1,sn:"RF-0001",model:"INSAS",cat:"Rifle",cal:"5.56mm",arm:"Alpha Main",status:"Available"},
+  {id:2,sn:"RF-0002",model:"INSAS",cat:"Rifle",cal:"5.56mm",arm:"Alpha Main",status:"Available"},
+  {id:3,sn:"RF-0003",model:"AK-203",cat:"Rifle",cal:"7.62mm",arm:"Alpha Main",status:"Available"},
+  {id:4,sn:"PS-0001",model:"Pistol Auto 9mm",cat:"Pistol",cal:"9mm",arm:"Alpha Main",status:"Available"},
+  {id:5,sn:"LM-0001",model:"Ultimax LMG",cat:"Light MG",cal:"5.56mm",arm:"Bravo Main",status:"Maintenance"},
+  {id:6,sn:"RF-0004",model:"AK-203",cat:"Rifle",cal:"7.62mm",arm:"Bravo Main",status:"Available"},
+  {id:7,sn:"SR-0001",model:"Dragunov SVD",cat:"Sniper",cal:"7.62mm",arm:"Bravo Main",status:"Available"}],
+ ammo:[
+  {id:1,type:"Ball",cal:"5.56mm",arm:"Alpha Main",qty:12000,min:2000},
+  {id:2,type:"Ball",cal:"7.62mm",arm:"Alpha Main",qty:3000,min:2000},
+  {id:3,type:"Ball",cal:"9mm",arm:"Alpha Main",qty:450,min:500},
+  {id:4,type:"Tracer",cal:"5.56mm",arm:"Bravo Main",qty:5000,min:1000}],
+ issues:[],ammoIssues:[],
+ maint:[{id:1,wid:5,date:"2026-05-20",type:"Overhaul",tech:"Nb Sub. Rao",cost:4800,next:"2026-11-20"}],
+ log:[]};
+let ids={issue:1,maint:2};
+function log(t,d){DB.log.unshift({t:now(),type:t,d})}
+const W=id=>DB.weapons.find(w=>w.id==id), P=id=>DB.personnel.find(p=>p.id==id);
+
+/* ---------- business rules (the triggers) ---------- */
+function issueWeapon(wid,pid,aid,days,purpose,ammoId,qty){
+ const w=W(wid),p=P(pid),a=P(aid);
+ if(w.status!=="Available")throw "Weapon is not available for issue";
+ if(p.status!=="Active")throw "Personnel is not active";
+ if(a.role!=="Armourer")throw "Only an Armourer can issue weapons";
+ if(qty>0){const am=DB.ammo.find(x=>x.id==ammoId);
+  if(am.qty<qty)throw "Insufficient ammunition stock";
+  am.qty-=qty; DB.ammoIssues.push({issue:ids.issue,ammo:ammoId,qty});}
+ DB.issues.unshift({id:ids.issue++,wid,pid,aid,date:now(),due:addDays(now(),days),ret:null,purpose,status:"Issued"});
+ w.status="Issued";
+ log("WEAPON_ISSUED",`${w.sn} issued to ${p.name}`+(qty?` with ${qty} rounds`:""));
+}
+function returnWeapon(id){
+ const i=DB.issues.find(x=>x.id==id); if(i.ret)return;
+ i.ret=now(); i.status="Returned"; W(i.wid).status="Available";
+ log("WEAPON_RETURNED",`${W(i.wid).sn} returned by ${P(i.pid).name}`);
+}
+function toMaint(wid,type,tech,cost){
+ const w=W(wid); if(w.status==="Issued")throw "Weapon is currently issued";
+ if(["Repair","Overhaul"].includes(type)&&w.status==="Available")w.status="Maintenance";
+ DB.maint.unshift({id:ids.maint++,wid,date:now().toISOString().slice(0,10),type,tech,cost:+cost||0,next:addDays(now(),180).toISOString().slice(0,10)});
+ log("MAINTENANCE",`${type} recorded for ${w.sn}`);
+}
+function doneMaint(wid){const w=W(wid);if(w.status==="Maintenance"){w.status="Available";log("MAINT_COMPLETE",`${w.sn} back in service`)}}
+
+/* ---------- UI ---------- */
+const TABS=["Dashboard","Weapons","Issue / Return","Ammunition","Maintenance","Audit Log","About"];
+let tab="Dashboard";
+function toast(m,ok){const t=$("#toast");t.textContent=m;t.className=ok?"ok":"err";t.style.display="block";clearTimeout(toast.h);toast.h=setTimeout(()=>t.style.display="none",3200)}
+function act(fn,msg){try{fn();toast(msg,true)}catch(e){toast(String(e),false)}render()}
+const tag=s=>`<span class="tag ${s}">${s}</span>`;
+const opts=(arr,f)=>arr.map(f).join("");
+
+function render(){
+ $("#nav").innerHTML=TABS.map(t=>`<button class="${t===tab?"on":""}" onclick="tab='${t}';render()">${t}</button>`).join("");
+ $("#app").innerHTML=VIEWS[tab]();
+}
+const VIEWS={
+Dashboard(){
+ const c=s=>DB.weapons.filter(w=>w.status===s).length;
+ const low=DB.ammo.filter(a=>a.qty<a.min), over=DB.issues.filter(i=>!i.ret&&i.due<now());
+ const inv={};DB.weapons.forEach(w=>{const k=w.arm+"|"+w.cat;inv[k]=inv[k]||{arm:w.arm,cat:w.cat,t:0,a:0,i:0,m:0};inv[k].t++;inv[k].a+=w.status==="Available";inv[k].i+=w.status==="Issued";inv[k].m+=w.status==="Maintenance"});
+ return `<div class="grid">
+ <div class="card stat"><b>${DB.weapons.length}</b><span>Total weapons</span></div>
+ <div class="card stat"><b class="Available">${c("Available")}</b><span>Available</span></div>
+ <div class="card stat"><b class="Issued">${c("Issued")}</b><span>Issued</span></div>
+ <div class="card stat"><b class="Maintenance">${c("Maintenance")}</b><span>In maintenance</span></div>
+ <div class="card stat"><b class="${low.length?"low":""}">${low.length}</b><span>Low ammo alerts</span></div></div>
+ <div class="card"><h2>Inventory summary <small style="color:var(--mut)">(v_inventory_summary)</small></h2><div class="sc"><table><tr><th>Armoury</th><th>Category</th><th>Total</th><th>Available</th><th>Issued</th><th>Maint.</th></tr>
+ ${opts(Object.values(inv),r=>`<tr><td>${r.arm}</td><td>${r.cat}</td><td>${r.t}</td><td>${r.a}</td><td>${r.i}</td><td>${r.m}</td></tr>`)}</table></div></div>
+ <div class="card"><h2>Alerts</h2>${low.length?low.map(a=>`<div class="low">Low stock: ${a.type} ${a.cal} at ${a.arm} (${a.qty} / min ${a.min})</div>`).join(""):"No stock alerts."}
+ ${over.length?over.map(i=>`<div class="low">Overdue: ${W(i.wid).sn} held by ${P(i.pid).name}</div>`).join(""):""}</div>`},
+
+Weapons(){
+ return `<div class="card"><h2>Weapon register</h2><div class="sc"><table><tr><th>Serial</th><th>Model</th><th>Category</th><th>Caliber</th><th>Armoury</th><th>Status</th></tr>
+ ${opts(DB.weapons,w=>`<tr><td>${w.sn}</td><td>${w.model}</td><td>${w.cat}</td><td>${w.cal}</td><td>${w.arm}</td><td>${tag(w.status)}</td></tr>`)}</table></div></div>
+ <div class="card"><h2>Register new weapon</h2><form onsubmit="event.preventDefault();addWeapon(this)">
+ <label>Serial no<input name="sn" required placeholder="RF-0099"></label>
+ <label>Model<input name="model" required></label>
+ <label>Category<select name="cat"><option>Rifle</option><option>Pistol</option><option>Light MG</option><option>Sniper</option></select></label>
+ <label>Caliber<input name="cal" placeholder="5.56mm"></label>
+ <label>Armoury<select name="arm"><option>Alpha Main</option><option>Bravo Main</option></select></label>
+ <button class="btn">Add weapon</button></form><p class="sql">INSERT INTO weapon(serial_no, model, ...) — serial_no is UNIQUE</p></div>`},
+
+"Issue / Return"(){
+ const act_=DB.issues.filter(i=>!i.ret);
+ return `<div class="card"><h2>Issue a weapon</h2><form onsubmit="event.preventDefault();doIssue(this)">
+ <label>Weapon<select name="w">${opts(DB.weapons,w=>`<option value="${w.id}">${w.sn} · ${w.model} (${w.status})</option>`)}</select></label>
+ <label>Issued to<select name="p">${opts(DB.personnel,p=>`<option value="${p.id}">${p.rank} ${p.name} (${p.status})</option>`)}</select></label>
+ <label>Issued by (armourer)<select name="a">${opts(DB.personnel,p=>`<option value="${p.id}">${p.name} · ${p.role}</option>`)}</select></label>
+ <label>Days<input name="d" type="number" min="1" value="3"></label>
+ <label>Purpose<input name="pu" placeholder="Border patrol"></label>
+ <label>Ammunition<select name="am">${opts(DB.ammo,a=>`<option value="${a.id}">${a.type} ${a.cal} · ${a.qty} left</option>`)}</select></label>
+ <label>Rounds<input name="q" type="number" min="0" value="0"></label>
+ <button class="btn">CALL issue_weapon()</button></form>
+ <p class="sql">Try issuing an already issued weapon, a suspended person, a non-armourer issuer, or too many rounds to see the triggers reject it.</p></div>
+ <div class="card"><h2>Currently issued <small style="color:var(--mut)">(v_current_issues)</small></h2><div class="sc"><table><tr><th>ID</th><th>Weapon</th><th>Person</th><th>Issued</th><th>Due</th><th></th></tr>
+ ${act_.length?opts(act_,i=>`<tr><td>${i.id}</td><td>${W(i.wid).sn}</td><td>${P(i.pid).name}</td><td>${fmt(i.date)}</td><td class="${i.due<now()?"low":""}">${fmt(i.due)}</td><td><button class="btn sm" onclick="act(()=>returnWeapon(${i.id}),'Weapon returned')">Return</button></td></tr>`):`<tr><td colspan="6">No weapons issued.</td></tr>`}</table></div></div>
+ <div class="card"><h2>History</h2><div class="sc"><table><tr><th>ID</th><th>Weapon</th><th>Person</th><th>Purpose</th><th>Returned</th><th>Status</th></tr>
+ ${opts(DB.issues,i=>`<tr><td>${i.id}</td><td>${W(i.wid).sn}</td><td>${P(i.pid).name}</td><td>${i.purpose||"—"}</td><td>${fmt(i.ret)}</td><td>${tag(i.status)}</td></tr>`)||""}</table></div></div>`},
+
+Ammunition(){
+ return `<div class="card"><h2>Ammunition stock</h2><div class="sc"><table><tr><th>Type</th><th>Caliber</th><th>Armoury</th><th>Stock</th><th>Level</th><th></th></tr>
+ ${opts(DB.ammo,a=>`<tr><td>${a.type}</td><td>${a.cal}</td><td>${a.arm}</td><td class="${a.qty<a.min?"low":""}">${a.qty} / min ${a.min}</td><td><div class="bar"><i style="width:${Math.min(100,a.qty/(a.min*3)*100)}%"></i></div></td><td><button class="btn sm alt" onclick="act(()=>{DB.ammo.find(x=>x.id==${a.id}).qty+=1000;log('RESTOCK','+1000 ${a.cal} ${a.type}')},'Restocked +1000')">+1000</button></td></tr>`)}</table></div>
+ <p class="sql">Rows in red come from v_low_ammo (quantity &lt; min_stock).</p></div>`},
+
+Maintenance(){
+ return `<div class="card"><h2>Record maintenance</h2><form onsubmit="event.preventDefault();doMaint(this)">
+ <label>Weapon<select name="w">${opts(DB.weapons,w=>`<option value="${w.id}">${w.sn} · ${w.model}</option>`)}</select></label>
+ <label>Type<select name="t"><option>Inspection</option><option>Cleaning</option><option>Repair</option><option>Overhaul</option></select></label>
+ <label>Technician<input name="tech" value="Hav. Gupta"></label>
+ <label>Cost (₹)<input name="c" type="number" min="0" value="0"></label>
+ <button class="btn">Save</button></form></div>
+ <div class="card"><h2>Weapons under maintenance</h2>${DB.weapons.filter(w=>w.status==="Maintenance").map(w=>`<div class="row">${w.sn} · ${w.model}<button class="btn sm" onclick="act(()=>doneMaint(${w.id}),'Back in service')">Complete maintenance</button></div>`).join("")||"None."}</div>
+ <div class="card"><h2>Service history</h2><div class="sc"><table><tr><th>Weapon</th><th>Date</th><th>Type</th><th>Technician</th><th>Cost</th><th>Next due</th></tr>
+ ${opts(DB.maint,m=>`<tr><td>${W(m.wid).sn}</td><td>${fd(m.date)}</td><td>${m.type}</td><td>${m.tech}</td><td>₹${m.cost}</td><td>${fd(m.next)}</td></tr>`)}</table></div>
+ <p class="sql">Total cost: ₹${DB.maint.reduce((s,m)=>s+m.cost,0)}  (SUM(cost) GROUP BY ...)</p></div>`},
+
+"Audit Log"(){
+ return `<div class="card"><h2>Audit log</h2><div class="sc"><table><tr><th>Time</th><th>Event</th><th>Details</th></tr>
+ ${opts(DB.log,l=>`<tr><td>${fmt(l.t)}</td><td>${l.type}</td><td>${l.d}</td></tr>`)||`<tr><td colspan="3">No events yet. Issue or return a weapon.</td></tr>`}</table></div></div>`},
+
+About(){
+ return `<div class="card"><h2>About this project</h2><p>This page is an interactive front end for the Armoury Management System DBMS micro project. It keeps its data in memory and reproduces the rules of the MySQL script, so refreshing the page resets everything.</p>
+ <p><b>Tables:</b> unit, personnel, armoury, weapon_category, weapon, ammunition, issue_record, ammo_issue, maintenance, audit_log.</p>
+ <p><b>Triggers modelled:</b> weapon must be Available; person must be Active; issuer must be an Armourer; ammo stock cannot go negative; issue marks weapon Issued; return frees it; repair or overhaul moves it to Maintenance.</p></div>`}
+};
+
+function addWeapon(f){const d=Object.fromEntries(new FormData(f));
+ act(()=>{if(DB.weapons.some(w=>w.sn===d.sn))throw "Duplicate serial number (UNIQUE constraint)";
+  DB.weapons.push({id:DB.weapons.length+1,sn:d.sn,model:d.model,cat:d.cat,cal:d.cal,arm:d.arm,status:"Available"});log("WEAPON_ADDED",d.sn+" registered")},"Weapon added")}
+function doIssue(f){const d=Object.fromEntries(new FormData(f));
+ act(()=>issueWeapon(+d.w,+d.p,+d.a,+d.d,d.pu,+d.am,+d.q),"Weapon issued")}
+function doMaint(f){const d=Object.fromEntries(new FormData(f));
+ act(()=>toMaint(+d.w,d.t,d.tech,d.c),"Maintenance recorded")}
+
+/* seed two issues like the SQL sample data */
+issueWeapon(1,2,1,3,"Border patrol",1,120);
+issueWeapon(4,3,1,1,"Officer sidearm duty",3,30);
+DB.log=DB.log.reverse().reverse();
+render();
+</script>
+</body>
+</html>
